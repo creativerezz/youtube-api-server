@@ -216,14 +216,14 @@ def run_all_tests():
     if metrics:
         metrics.endpoint_name = "error_handling"
         metrics.print_report()
-        error_passed = any(code == 404 for code in metrics.status_codes)
+        error_passed = any("404" in str(err) for err in metrics.errors) if metrics.errors else False
         results.append(("404 - Prompt Not Found", error_passed))
 
     metrics = test_category_not_found()
     if metrics:
         metrics.endpoint_name = "error_handling"
         metrics.print_report()
-        error_passed = any(code == 404 for code in metrics.status_codes)
+        error_passed = any("404" in str(err) for err in metrics.errors) if metrics.errors else False
         results.append(("404 - Category Not Found", error_passed))
 
     # Test content availability

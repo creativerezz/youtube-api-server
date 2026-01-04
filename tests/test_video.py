@@ -175,8 +175,8 @@ def run_all_tests():
     metrics = test_invalid_url()
     metrics.endpoint_name = "error_handling"
     metrics.print_report()
-    # Error handling test - expect 400 status code
-    error_passed = any(code == 400 for code in metrics.status_codes)
+    # Error handling test - expect 400 error in error messages
+    error_passed = any("400" in str(err) for err in metrics.errors) if metrics.errors else False
     results.append(("Error Handling (Invalid URL)", error_passed))
 
     # Test cache effectiveness
