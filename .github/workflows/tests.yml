@@ -1,0 +1,154 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    name: Run API Tests
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Install dependencies
+        run: |
+          uv sync
+          uv pip install requests
+
+      - name: Check environment
+        run: |
+          python --version
+          uv --version
+          redis-cli -h localhost ping
+
+      - name: Start API server in background
+        run: |
+          uv run python main.py > /tmp/server.log 2>&1 &
+          echo $! > /tmp/server.pid
+        env:
+          REDIS_URL: redis://localhost:6379/0
+          WEBSHARE_PROXY_USERNAME: ${{ secrets.WEBSHARE_PROXY_USERNAME }}
+          WEBSHARE_PROXY_PASSWORD: ${{ secrets.WEBSHARE_PROXY_PASSWORD }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+
+      - name: Wait for server to be ready
+        run: |
+          for i in {1..30}; do
+            if curl -s http://localhost:8000/health > /dev/null 2>&1; then
+              echo "Server is ready!"
+              break
+            fi
+            echo "Waiting for server... ($i/30)"
+            sleep 2
+          done
+          curl -s http://localhost:8000/health | python -m json.tool || echo "Health check failed"
+
+      - name: Run tests
+        run: |
+          cd tests
+          if [ -n "${{ secrets.OPENROUTER_API_KEY }}" ]; then
+            echo "Running all tests including AI features..."
+            uv run --with requests python run_all_tests.py
+          else
+            echo "Skipping AI tests (OPENROUTER_API_KEY not configured)..."
+            uv run --with requests python run_all_tests.py --skip-ai
+          fi
+        env:
+          API_BASE_URL: http://localhost:8000
+          REDIS_URL: redis://localhost:6379/0
+
+      - name: Display server logs on failure
+        if: failure()
+        run: |
+          echo "=== Server Logs ==="
+          cat /tmp/server.log || echo "No server logs found"
+
+      - name: Stop server
+        if: always()
+        run: |
+          if [ -f /tmp/server.pid ]; then
+            kill $(cat /tmp/server.pid) 2>/dev/null || true
+          fi
+          pkill -f "python main.py" || true
+
+  test-without-redis:
+    name: Run Tests Without Redis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Install dependencies
+        run: |
+          uv sync
+          uv pip install requests
+
+      - name: Start API server in background
+        run: |
+          uv run python main.py > /tmp/server.log 2>&1 &
+          echo $! > /tmp/server.pid
+
+      - name: Wait for server to be ready
+        run: |
+          for i in {1..30}; do
+            if curl -s http://localhost:8000/health > /dev/null 2>&1; then
+              echo "Server is ready!"
+              break
+            fi
+            echo "Waiting for server... ($i/30)"
+            sleep 2
+          done
+
+      - name: Run tests (skip Redis-dependent features)
+        run: |
+          cd tests
+          uv run --with requests python run_all_tests.py --skip-ai --skip-storage
+        env:
+          API_BASE_URL: http://localhost:8000
+
+      - name: Display server logs on failure
+        if: failure()
+        run: |
+          echo "=== Server Logs ==="
+          cat /tmp/server.log || echo "No server logs found"
+
+      - name: Stop server
+        if: always()
+        run: |
+          if [ -f /tmp/server.pid ]; then
+            kill $(cat /tmp/server.pid) 2>/dev/null || true
+          fi
+          pkill -f "python main.py" || true
