@@ -20,10 +20,10 @@ python -m app.main
 pytest
 
 # Run a single test file
-pytest tests/test_example.py
+pytest tests/test_youtube_endpoints.py
 
 # Run a specific test
-pytest tests/test_example.py::test_function_name
+pytest tests/test_youtube_endpoints.py::test_function_name
 ```
 
 ### Docker
@@ -41,20 +41,25 @@ app/
 ├── core/config.py       # Settings class (reads from .env)
 ├── models/youtube.py    # Pydantic models (YouTubeRequest, VideoData)
 ├── routes/youtube.py    # API endpoints under /youtube prefix
-└── utils/youtube_tools.py  # YouTubeTools class with static methods
+└── utils/
+    ├── youtube_tools.py # YouTubeTools class with static methods
+    └── webshare.py      # WebshareClient singleton for proxy management
 ```
 
 ### Request Flow
-1. Routes receive `YouTubeRequest` (url, optional languages[], optional proxy)
-2. Routes call static methods on `YouTubeTools` class
-3. `YouTubeTools` extracts video ID, fetches data via oEmbed or youtube-transcript-api
-4. All methods support optional HTTP/HTTPS proxy (passed per-request, env proxies ignored)
+1. Routes receive `YouTubeRequest` (url, optional languages[], optional proxy, use_webshare)
+2. Routes resolve proxy via `_get_proxy()` (Webshare > manual proxy > none)
+3. Routes call static methods on `YouTubeTools` class
+4. `YouTubeTools` extracts video ID, fetches data via oEmbed or youtube-transcript-api
+5. Captions/timestamps endpoints auto-retry with Webshare proxy on IP block errors
 
 ### Key Patterns
 - All YouTube operations are static methods in `YouTubeTools` class
 - Proxy support is per-request via request body, not environment variables (`session.trust_env = False`)
 - Captions/timestamps use `YouTubeTranscriptApi` with `GenericProxyConfig`
 - Metadata uses YouTube oEmbed API via requests
+- Routes layer handles IP block detection and auto-retry logic (`_retry_with_proxy`)
+- Captions/timestamps auto-enable Webshare proxy if configured (more likely to be blocked)
 
 ## API Endpoints
 
@@ -78,3 +83,4 @@ The app supports Webshare rotating proxies via `app/utils/webshare.py`:
 - Set `use_webshare: true` in request body to use a random Webshare proxy
 - Proxies are fetched on-demand and cached in memory
 - Falls back to manual `proxy` field if `use_webshare` is false
+- Captions/timestamps endpoints automatically use Webshare if configured (no flag needed)
