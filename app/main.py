@@ -18,8 +18,26 @@ logger = logging.getLogger(__name__)
 # Initialize FastAPI app
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    description="API for extracting and processing YouTube video data",
+    description="""
+## YouTube Data Extraction API
+
+Extract video metadata, captions, and timestamps from YouTube videos.
+
+### Features
+- **Video Metadata**: Title, author, thumbnail via oEmbed API
+- **Captions**: Full transcript text
+- **Timestamps**: Captions with time markers
+
+### Input Formats
+All endpoints accept either:
+- **Video ID**: `dQw4w9WgXcQ`
+- **Full URL**: `https://www.youtube.com/watch?v=dQw4w9WgXcQ`
+- **Short URL**: `https://youtu.be/dQw4w9WgXcQ`
+- **Shorts URL**: `https://youtube.com/shorts/VIDEO_ID`
+""",
     version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
 )
 
 # Add CORS middleware

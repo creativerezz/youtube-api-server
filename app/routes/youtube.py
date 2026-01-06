@@ -1,9 +1,9 @@
 import logging
-from typing import Optional
+from typing import Optional, List
 
 from fastapi import APIRouter, HTTPException
 
-from app.models.youtube import YouTubeRequest
+from app.models.youtube import YouTubeRequest, VideoData
 from app.utils.youtube_tools import YouTubeTools
 from app.utils.webshare import webshare_client
 
@@ -11,8 +11,11 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/youtube",
-    tags=["youtube"],
-    responses={404: {"description": "Not found"}},
+    tags=["YouTube"],
+    responses={
+        400: {"description": "Invalid YouTube URL or video ID"},
+        500: {"description": "Error fetching data from YouTube"},
+    },
 )
 
 
@@ -77,18 +80,30 @@ def _retry_with_proxy(func, *args, initial_proxy: Optional[str] = None, **kwargs
         raise
 
 
-@router.post("/video-data")
-async def get_video_data(request: YouTubeRequest):
-    """Endpoint to get video metadata"""
+@router.post(
+    "/video-data",
+    response_model=VideoData,
+    summary="Get Video Metadata",
+    description="Fetch video metadata (title, author, thumbnail) using YouTube's oEmbed API.",
+)
+async def get_video_data(request: YouTubeRequest) -> VideoData:
+    """Get video metadata including title, author, and thumbnail URL."""
+    if not request.video_id:
+        raise HTTPException(status_code=400, detail="Invalid YouTube URL or video ID")
     proxy = _get_proxy(request)
     return YouTubeTools.get_video_data(request.url, proxy)
 
 
-@router.post("/video-captions")
-async def get_video_captions(request: YouTubeRequest):
-    """Endpoint to get video captions. Automatically uses Webshare proxy if configured.
-    Will retry with proxy if IP block error is detected."""
-    # Automatically use Webshare proxy for captions (more likely to be blocked)
+@router.post(
+    "/video-captions",
+    response_model=str,
+    summary="Get Video Captions",
+    description="Fetch the full transcript/captions as concatenated text. Automatically uses proxy if configured.",
+)
+async def get_video_captions(request: YouTubeRequest) -> str:
+    """Get video transcript as a single text string."""
+    if not request.video_id:
+        raise HTTPException(status_code=400, detail="Invalid YouTube URL or video ID")
     proxy = _get_proxy(request, auto_use_webshare=True)
     return _retry_with_proxy(
         YouTubeTools.get_video_captions,
@@ -99,11 +114,16 @@ async def get_video_captions(request: YouTubeRequest):
     )
 
 
-@router.post("/video-timestamps")
-async def get_video_timestamps(request: YouTubeRequest):
-    """Endpoint to get video timestamps. Automatically uses Webshare proxy if configured.
-    Will retry with proxy if IP block error is detected."""
-    # Automatically use Webshare proxy for timestamps (more likely to be blocked)
+@router.post(
+    "/video-timestamps",
+    response_model=List[str],
+    summary="Get Timestamped Captions",
+    description="Fetch captions with timestamps in 'M:SS - text' format. Automatically uses proxy if configured.",
+)
+async def get_video_timestamps(request: YouTubeRequest) -> List[str]:
+    """Get video captions with timestamps."""
+    if not request.video_id:
+        raise HTTPException(status_code=400, detail="Invalid YouTube URL or video ID")
     proxy = _get_proxy(request, auto_use_webshare=True)
     return _retry_with_proxy(
         YouTubeTools.get_video_timestamps,
