@@ -4,15 +4,17 @@ from pydantic import BaseModel
 class YouTubeRequest(BaseModel):
     """
     Model for YouTube API requests.
-    
+
     Attributes:
         url: YouTube video URL
         languages: Optional list of language codes for captions
         proxy: Optional proxy URL used for outbound requests
+        use_webshare: Use a Webshare proxy (overrides proxy field)
     """
     url: str
     languages: Optional[List[str]] = None
     proxy: Optional[str] = None
+    use_webshare: bool = False
 
 class VideoData(BaseModel):
     """

@@ -67,3 +67,14 @@ app/
 - `HOST` - Server host (default: 0.0.0.0)
 - `PORT` - Server port (default: 8000)
 - `LOG_LEVEL` - Logging level (default: INFO)
+- `WEBSHARE_API_TOKEN` - Webshare API token for proxy list fetching
+- `WEBSHARE_PROXY_USERNAME` - Webshare proxy authentication username
+- `WEBSHARE_PROXY_PASSWORD` - Webshare proxy authentication password
+
+## Webshare Proxy Integration
+
+The app supports Webshare rotating proxies via `app/utils/webshare.py`:
+- `WebshareClient` fetches and caches proxy list from Webshare API
+- Set `use_webshare: true` in request body to use a random Webshare proxy
+- Proxies are fetched on-demand and cached in memory
+- Falls back to manual `proxy` field if `use_webshare` is false
