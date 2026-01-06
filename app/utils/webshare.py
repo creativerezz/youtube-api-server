@@ -51,17 +51,19 @@ class WebshareClient:
             return []
 
         try:
+            # Try without mode parameter first, as it might not be required
             response = requests.get(
                 f"{self.API_BASE}/proxy/list/",
                 headers=self._get_headers(),
-                params={"mode": "direct", "page_size": page_size},
+                params={"page_size": page_size},
             )
             response.raise_for_status()
             data = response.json()
 
             proxies = []
             for proxy_data in data.get("results", []):
-                if proxy_data.get("valid", False):
+                # Accept proxies that are valid, or if valid field is not present, accept all
+                if proxy_data.get("valid", True):
                     proxy = WebshareProxy(
                         proxy_address=proxy_data["proxy_address"],
                         port=proxy_data["port"],
@@ -75,6 +77,15 @@ class WebshareClient:
             logger.info(f"Fetched {len(proxies)} valid proxies from Webshare")
             return proxies
 
+        except requests.HTTPError as e:
+            # Log the actual error response for debugging
+            error_detail = ""
+            try:
+                error_detail = f" - {e.response.text}"
+            except:
+                pass
+            logger.error(f"Failed to fetch Webshare proxies: {e}{error_detail}")
+            return []
         except requests.RequestException as e:
             logger.error(f"Failed to fetch Webshare proxies: {e}")
             return []

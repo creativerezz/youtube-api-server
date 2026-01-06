@@ -1,4 +1,5 @@
 import logging
+import os
 
 from fastapi import FastAPI
 import uvicorn
@@ -50,7 +51,12 @@ async def health_check():
 def start():
     """Function to start the server"""
     logger.info(f"Starting server on {settings.HOST}:{settings.PORT}")
-    uvicorn.run("app.main:app", host=settings.HOST, port=settings.PORT, reload=True)
+    # Disable reload in production (Railway sets RAILWAY_ENVIRONMENT)
+    # Only enable reload if explicitly requested via ENABLE_RELOAD env var
+    enable_reload = os.getenv("ENABLE_RELOAD", "false").lower() == "true"
+    is_production = os.getenv("RAILWAY_ENVIRONMENT") == "production"
+    reload = enable_reload and not is_production
+    uvicorn.run("app.main:app", host=settings.HOST, port=settings.PORT, reload=reload)
 
 if __name__ == "__main__":
     start()
