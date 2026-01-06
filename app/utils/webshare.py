@@ -13,15 +13,20 @@ logger = logging.getLogger(__name__)
 @dataclass
 class WebshareProxy:
     """Represents a Webshare proxy."""
-    proxy_address: str
+    proxy_address: Optional[str]
     port: int
     username: str
     password: str
     country_code: str
 
+    # Gateway address for backbone/residential proxies
+    BACKBONE_GATEWAY = "p.webshare.io"
+
     def to_url(self) -> str:
         """Return proxy URL in http://user:pass@host:port format."""
-        return f"http://{self.username}:{self.password}@{self.proxy_address}:{self.port}"
+        # Use backbone gateway if proxy_address is null (residential proxies)
+        host = self.proxy_address or self.BACKBONE_GATEWAY
+        return f"http://{self.username}:{self.password}@{host}:{self.port}"
 
 
 class WebshareClient:
@@ -51,11 +56,11 @@ class WebshareClient:
             return []
 
         try:
-            # Try without mode parameter first, as it might not be required
+            # Use backbone mode for residential proxies
             response = requests.get(
                 f"{self.API_BASE}/proxy/list/",
                 headers=self._get_headers(),
-                params={"page_size": page_size},
+                params={"page_size": page_size, "mode": "backbone"},
             )
             response.raise_for_status()
             data = response.json()
