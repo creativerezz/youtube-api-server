@@ -7,6 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.routes.youtube import router as youtube_router
+from app.routes.edge import router as edge_router
+from app.routes.storage import router as storage_router
 
 # Configure logging
 logging.basicConfig(
@@ -21,12 +23,15 @@ app = FastAPI(
     description="""
 ## YouTube Data Extraction API
 
-Extract video metadata, captions, and timestamps from YouTube videos.
+Extract video metadata, captions, and timestamps from YouTube videos with multi-tier caching.
 
 ### Features
 - **Video Metadata**: Title, author, thumbnail via oEmbed API
 - **Captions**: Full transcript text
 - **Timestamps**: Captions with time markers
+- **Edge Caching**: Optional edge-cached responses via Edge API (Cloudflare KV)
+- **Persistent Storage**: Optional transcript storage via Storage API (D1 database)
+- **Multi-tier Fallback**: Redis → Edge API → Storage API → Direct YouTube
 
 ### Input Formats
 All endpoints accept either:
@@ -34,6 +39,13 @@ All endpoints accept either:
 - **Full URL**: `https://www.youtube.com/watch?v=dQw4w9WgXcQ`
 - **Short URL**: `https://youtu.be/dQw4w9WgXcQ`
 - **Shorts URL**: `https://youtube.com/shorts/VIDEO_ID`
+
+### External APIs (Optional)
+Configure via environment variables to enable:
+- **Edge API**: Set `EDGE_API_URL` and `EDGE_API_KEY` for edge caching
+- **Storage API**: Set `STORAGE_API_URL` and `STORAGE_API_KEY` for persistent storage
+
+See `/edge/*` and `/storage/*` endpoints for direct API access.
 """,
     version="1.0.0",
     docs_url="/docs",
@@ -59,6 +71,8 @@ app.add_middleware(
 
 # Include routers
 app.include_router(youtube_router)
+app.include_router(edge_router)
+app.include_router(storage_router)
 
 @app.get("/", tags=["root"])
 async def root():

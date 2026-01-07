@@ -33,5 +33,13 @@ class Settings:
     # Redis settings
     REDIS_URL: Optional[str] = os.getenv("REDIS_URL")
 
+    # YouTube Edge API settings (optional)
+    EDGE_API_URL: Optional[str] = os.getenv("EDGE_API_URL")
+    EDGE_API_KEY: Optional[str] = os.getenv("EDGE_API_KEY")
+
+    # Transcript Storage API settings (optional)
+    STORAGE_API_URL: Optional[str] = os.getenv("STORAGE_API_URL")
+    STORAGE_API_KEY: Optional[str] = os.getenv("STORAGE_API_KEY")
+
 # Create settings instance
 settings = Settings()

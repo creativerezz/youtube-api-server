@@ -7,6 +7,8 @@ from app.models.youtube import YouTubeRequest, VideoData, ErrorResponse
 from app.utils.youtube_tools import YouTubeTools
 from app.utils.webshare import webshare_client
 from app.utils.redis_cache import redis_cache
+from app.utils.edge_api import edge_api_client
+from app.utils.storage_api import storage_api_client
 
 logger = logging.getLogger(__name__)
 
@@ -155,6 +157,16 @@ async def get_video_data(
     """Get video metadata including title, author, and thumbnail URL."""
     if not request.video_id:
         raise HTTPException(status_code=400, detail="Invalid YouTube URL or video ID")
+
+    # Try Edge API first if configured
+    if edge_api_client.is_configured:
+        edge_data = edge_api_client.get_metadata(request.video_id)
+        if edge_data:
+            logger.info(f"Served metadata from Edge API for {request.video_id}")
+            return VideoData(**edge_data)
+        logger.debug("Edge API failed, falling back to direct YouTube")
+
+    # Fallback to existing direct YouTube logic
     proxy = _get_proxy(request)
     return YouTubeTools.get_video_data(request.url, proxy)
 
@@ -203,12 +215,35 @@ async def get_video_captions(
     if not request.video_id:
         raise HTTPException(status_code=400, detail="Invalid YouTube URL or video ID")
 
-    # Check cache first
+    # 1. Check Redis cache first (fastest)
     cached = redis_cache.get_captions(request.video_id, request.languages)
     if cached is not None:
         return cached
 
-    # Fetch from YouTube
+    # 2. Try Edge API if configured
+    if edge_api_client.is_configured:
+        edge_captions = edge_api_client.get_captions(request.video_id, request.languages)
+        if edge_captions:
+            logger.info(f"Served captions from Edge API for {request.video_id}")
+            redis_cache.set_captions(request.video_id, request.languages, edge_captions)
+            return edge_captions
+        logger.debug("Edge API failed, trying Storage API")
+
+    # 3. Try Storage API if configured
+    if storage_api_client.is_configured:
+        storage_result = storage_api_client.fetch_transcript(
+            request.video_id,
+            request.languages,
+            force=False
+        )
+        if storage_result and storage_result.get("transcript"):
+            logger.info(f"Served captions from Storage API for {request.video_id} (source: {storage_result.get('source')})")
+            transcript = storage_result["transcript"]
+            redis_cache.set_captions(request.video_id, request.languages, transcript)
+            return transcript
+        logger.debug("Storage API failed, falling back to direct YouTube")
+
+    # 4. Fallback to existing direct YouTube logic
     proxy = _get_proxy(request, auto_use_webshare=True)
     captions = _retry_with_proxy(
         YouTubeTools.get_video_captions,
