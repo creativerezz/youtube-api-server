@@ -38,6 +38,14 @@ All endpoints accept either:
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    swagger_ui_parameters={
+        "tryItOutEnabled": True,
+        "defaultModelsExpandDepth": 1,
+        "docExpansion": "list",
+        "filter": True,
+        "persistAuthorization": True,
+        "displayRequestDuration": True,
+    },
 )
 
 # Add CORS middleware

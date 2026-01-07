@@ -1,9 +1,9 @@
 import logging
-from typing import Optional, List
+from typing import Annotated, Optional, List
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Body, HTTPException
 
-from app.models.youtube import YouTubeRequest, VideoData
+from app.models.youtube import YouTubeRequest, VideoData, ErrorResponse
 from app.utils.youtube_tools import YouTubeTools
 from app.utils.webshare import webshare_client
 
@@ -13,8 +13,47 @@ router = APIRouter(
     prefix="/youtube",
     tags=["YouTube"],
     responses={
-        400: {"description": "Invalid YouTube URL or video ID"},
-        500: {"description": "Error fetching data from YouTube"},
+        400: {
+            "model": ErrorResponse,
+            "description": "Invalid input",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "invalid_url": {
+                            "summary": "Invalid URL/ID",
+                            "value": {"detail": "Invalid YouTube URL or video ID"}
+                        },
+                    }
+                }
+            }
+        },
+        500: {
+            "model": ErrorResponse,
+            "description": "YouTube API error",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "fetch_error": {
+                            "summary": "Fetch failed",
+                            "value": {"detail": "Error getting video data: Connection timeout"}
+                        },
+                        "no_captions": {
+                            "summary": "No captions",
+                            "value": {"detail": "No captions found for video"}
+                        }
+                    }
+                }
+            }
+        },
+        503: {
+            "model": ErrorResponse,
+            "description": "Proxy unavailable",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "No Webshare proxies available"}
+                }
+            }
+        }
     },
 )
 
@@ -86,7 +125,32 @@ def _retry_with_proxy(func, *args, initial_proxy: Optional[str] = None, **kwargs
     summary="Get Video Metadata",
     description="Fetch video metadata (title, author, thumbnail) using YouTube's oEmbed API.",
 )
-async def get_video_data(request: YouTubeRequest) -> VideoData:
+async def get_video_data(
+    request: Annotated[YouTubeRequest, Body(
+        openapi_examples={
+            "video_id": {
+                "summary": "Video ID only",
+                "description": "Just the 11-character video ID",
+                "value": {"video": "dQw4w9WgXcQ"}
+            },
+            "full_url": {
+                "summary": "Full YouTube URL",
+                "description": "Standard youtube.com watch URL",
+                "value": {"video": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"}
+            },
+            "short_url": {
+                "summary": "Short URL (youtu.be)",
+                "description": "Shortened youtu.be link",
+                "value": {"video": "https://youtu.be/dQw4w9WgXcQ"}
+            },
+            "with_proxy": {
+                "summary": "With Webshare proxy",
+                "description": "Use rotating residential proxy",
+                "value": {"video": "dQw4w9WgXcQ", "use_webshare": True}
+            }
+        }
+    )]
+) -> VideoData:
     """Get video metadata including title, author, and thumbnail URL."""
     if not request.video_id:
         raise HTTPException(status_code=400, detail="Invalid YouTube URL or video ID")
@@ -99,8 +163,41 @@ async def get_video_data(request: YouTubeRequest) -> VideoData:
     response_model=str,
     summary="Get Video Captions",
     description="Fetch the full transcript/captions as concatenated text. Automatically uses proxy if configured.",
+    responses={
+        200: {
+            "description": "Full transcript text",
+            "content": {
+                "application/json": {
+                    "example": "We're no strangers to love. You know the rules and so do I. A full commitment's what I'm thinking of..."
+                }
+            }
+        }
+    }
 )
-async def get_video_captions(request: YouTubeRequest) -> str:
+async def get_video_captions(
+    request: Annotated[YouTubeRequest, Body(
+        openapi_examples={
+            "simple": {
+                "summary": "Basic request",
+                "value": {"video": "dQw4w9WgXcQ"}
+            },
+            "with_language": {
+                "summary": "Specific language",
+                "description": "Request English captions",
+                "value": {"video": "dQw4w9WgXcQ", "languages": ["en"]}
+            },
+            "multi_language": {
+                "summary": "Multiple languages",
+                "description": "Try English first, then Spanish",
+                "value": {"video": "dQw4w9WgXcQ", "languages": ["en", "es"]}
+            },
+            "with_proxy": {
+                "summary": "With Webshare proxy",
+                "value": {"video": "dQw4w9WgXcQ", "use_webshare": True}
+            }
+        }
+    )]
+) -> str:
     """Get video transcript as a single text string."""
     if not request.video_id:
         raise HTTPException(status_code=400, detail="Invalid YouTube URL or video ID")
@@ -119,8 +216,41 @@ async def get_video_captions(request: YouTubeRequest) -> str:
     response_model=List[str],
     summary="Get Timestamped Captions",
     description="Fetch captions with timestamps in 'M:SS - text' format. Automatically uses proxy if configured.",
+    responses={
+        200: {
+            "description": "List of timestamped captions",
+            "content": {
+                "application/json": {
+                    "example": [
+                        "0:00 - [Music]",
+                        "0:18 - We're no strangers to love",
+                        "0:22 - You know the rules and so do I",
+                        "0:27 - A full commitment's what I'm thinking of"
+                    ]
+                }
+            }
+        }
+    }
 )
-async def get_video_timestamps(request: YouTubeRequest) -> List[str]:
+async def get_video_timestamps(
+    request: Annotated[YouTubeRequest, Body(
+        openapi_examples={
+            "simple": {
+                "summary": "Basic request",
+                "value": {"video": "dQw4w9WgXcQ"}
+            },
+            "with_language": {
+                "summary": "Specific language",
+                "value": {"video": "dQw4w9WgXcQ", "languages": ["en"]}
+            },
+            "shorts": {
+                "summary": "YouTube Shorts",
+                "description": "Works with Shorts URLs too",
+                "value": {"video": "https://youtube.com/shorts/VIDEO_ID"}
+            }
+        }
+    )]
+) -> List[str]:
     """Get video captions with timestamps."""
     if not request.video_id:
         raise HTTPException(status_code=400, detail="Invalid YouTube URL or video ID")

@@ -1,7 +1,7 @@
 import re
 from typing import Optional, List
 from urllib.parse import urlparse, parse_qs
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class YouTubeRequest(BaseModel):
@@ -78,6 +78,23 @@ class YouTubeRequest(BaseModel):
 class VideoData(BaseModel):
     """YouTube video metadata from oEmbed API."""
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "title": "Rick Astley - Never Gonna Give You Up (Official Video)",
+                "author_name": "Rick Astley",
+                "author_url": "https://www.youtube.com/@RickAstleyYT",
+                "type": "video",
+                "height": 113,
+                "width": 200,
+                "version": "1.0",
+                "provider_name": "YouTube",
+                "provider_url": "https://www.youtube.com/",
+                "thumbnail_url": "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg"
+            }
+        }
+    )
+
     title: Optional[str] = Field(default=None, description="Video title")
     author_name: Optional[str] = Field(default=None, description="Channel name")
     author_url: Optional[str] = Field(default=None, description="Channel URL")
@@ -90,8 +107,7 @@ class VideoData(BaseModel):
     thumbnail_url: Optional[str] = Field(default=None, description="Video thumbnail URL")
 
 
-class TimestampEntry(BaseModel):
-    """A single timestamped caption entry."""
+class ErrorResponse(BaseModel):
+    """API error response."""
 
-    time: str = Field(description="Timestamp in M:SS format")
-    text: str = Field(description="Caption text at this timestamp")
+    detail: str = Field(description="Error message describing what went wrong")
