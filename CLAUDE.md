@@ -84,3 +84,11 @@ The app supports Webshare rotating proxies via `app/utils/webshare.py`:
 - Proxies are fetched on-demand and cached in memory
 - Falls back to manual `proxy` field if `use_webshare` is false
 - Captions/timestamps endpoints automatically use Webshare if configured (no flag needed)
+
+## AI Prompts
+
+The `/prompts` directory contains reusable LLM/AI system prompts for Claude and other AI tools:
+- See `prompts/README.md` for usage guidelines and best practices
+- Prompts help maintain consistency in AI-assisted development tasks
+- Organized by domain (YouTube extraction, API design, testing, deployment)
+- Reference these prompts for common project patterns and workflows
