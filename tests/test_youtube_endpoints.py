@@ -25,7 +25,7 @@ class TestVideoData:
         """Test getting video metadata for each test video."""
         response = client.post(
             "/youtube/video-data",
-            json={"url": url}
+            json={"video": url}
         )
         assert response.status_code == 200, f"Failed for URL: {url}"
         data = response.json()
@@ -42,7 +42,7 @@ class TestVideoData:
         """Test video-data endpoint with invalid URL."""
         response = client.post(
             "/youtube/video-data",
-            json={"url": "https://invalid-url.com"}
+            json={"video": "https://invalid-url.com"}
         )
         assert response.status_code == 400
 
@@ -63,7 +63,7 @@ class TestVideoCaptions:
         """Test getting video captions for each test video."""
         response = client.post(
             "/youtube/video-captions",
-            json={"url": url}
+            json={"video": url}
         )
         # Note: May fail if IP is blocked, but should work with auto-proxy
         if response.status_code == 200:
@@ -81,7 +81,7 @@ class TestVideoCaptions:
         """Test getting video captions with specific language."""
         response = client.post(
             "/youtube/video-captions",
-            json={"url": url, "languages": ["en"]}
+            json={"video": url, "languages": ["en"]}
         )
         # May succeed or fail depending on proxy/IP blocking
         if response.status_code == 200:
@@ -92,7 +92,7 @@ class TestVideoCaptions:
         """Test video-captions endpoint with invalid URL."""
         response = client.post(
             "/youtube/video-captions",
-            json={"url": "https://invalid-url.com"}
+            json={"video": "https://invalid-url.com"}
         )
         assert response.status_code == 400
 
@@ -102,7 +102,7 @@ class TestVideoCaptions:
         url = TEST_VIDEOS[0]
         response = client.post(
             "/youtube/video-captions",
-            json={"url": url, "use_webshare": True}
+            json={"video": url, "use_webshare": True}
         )
         # Should work if Webshare is configured, or return appropriate error
         assert response.status_code in [200, 500, 503]
@@ -116,7 +116,7 @@ class TestVideoTimestamps:
         """Test getting video timestamps for each test video."""
         response = client.post(
             "/youtube/video-timestamps",
-            json={"url": url}
+            json={"video": url}
         )
         # May succeed or fail depending on proxy/IP blocking
         if response.status_code == 200:
@@ -132,7 +132,7 @@ class TestVideoTimestamps:
         """Test getting video timestamps with specific language."""
         response = client.post(
             "/youtube/video-timestamps",
-            json={"url": url, "languages": ["en"]}
+            json={"video": url, "languages": ["en"]}
         )
         # May succeed or fail depending on proxy/IP blocking
         if response.status_code == 200:
@@ -143,7 +143,7 @@ class TestVideoTimestamps:
         """Test video-timestamps endpoint with invalid URL."""
         response = client.post(
             "/youtube/video-timestamps",
-            json={"url": "https://invalid-url.com"}
+            json={"video": "https://invalid-url.com"}
         )
         assert response.status_code == 400
 
@@ -175,7 +175,7 @@ class TestVideoIDExtraction:
         url = "https://www.youtube.com/watch?v=4v4PJoxm8Bc"
         response = client.post(
             "/youtube/video-data",
-            json={"url": url}
+            json={"video": url}
         )
         assert response.status_code == 200
 
@@ -184,7 +184,7 @@ class TestVideoIDExtraction:
         url = "https://youtu.be/4v4PJoxm8Bc"
         response = client.post(
             "/youtube/video-data",
-            json={"url": url}
+            json={"video": url}
         )
         assert response.status_code == 200
 
@@ -193,6 +193,6 @@ class TestVideoIDExtraction:
         url = "https://www.youtube.com/embed/4v4PJoxm8Bc"
         response = client.post(
             "/youtube/video-data",
-            json={"url": url}
+            json={"video": url}
         )
         assert response.status_code == 200
