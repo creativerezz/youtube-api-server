@@ -6,6 +6,7 @@ from fastapi import APIRouter, Body, HTTPException
 from app.models.youtube import YouTubeRequest, VideoData, ErrorResponse
 from app.utils.youtube_tools import YouTubeTools
 from app.utils.webshare import webshare_client
+from app.utils.redis_cache import redis_cache
 
 logger = logging.getLogger(__name__)
 
@@ -201,14 +202,27 @@ async def get_video_captions(
     """Get video transcript as a single text string."""
     if not request.video_id:
         raise HTTPException(status_code=400, detail="Invalid YouTube URL or video ID")
+
+    # Check cache first
+    cached = redis_cache.get_captions(request.video_id, request.languages)
+    if cached is not None:
+        return cached
+
+    # Fetch from YouTube
     proxy = _get_proxy(request, auto_use_webshare=True)
-    return _retry_with_proxy(
+    captions = _retry_with_proxy(
         YouTubeTools.get_video_captions,
         request.url,
         request.languages,
         initial_proxy=proxy,
         proxy=proxy
     )
+
+    # Cache the result
+    if captions:
+        redis_cache.set_captions(request.video_id, request.languages, captions)
+
+    return captions
 
 
 @router.post(
@@ -254,11 +268,24 @@ async def get_video_timestamps(
     """Get video captions with timestamps."""
     if not request.video_id:
         raise HTTPException(status_code=400, detail="Invalid YouTube URL or video ID")
+
+    # Check cache first
+    cached = redis_cache.get_timestamps(request.video_id, request.languages)
+    if cached is not None:
+        return cached
+
+    # Fetch from YouTube
     proxy = _get_proxy(request, auto_use_webshare=True)
-    return _retry_with_proxy(
+    timestamps = _retry_with_proxy(
         YouTubeTools.get_video_timestamps,
         request.url,
         request.languages,
         initial_proxy=proxy,
         proxy=proxy
     )
+
+    # Cache the result
+    if timestamps:
+        redis_cache.set_timestamps(request.video_id, request.languages, timestamps)
+
+    return timestamps

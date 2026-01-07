@@ -30,5 +30,8 @@ class Settings:
     WEBSHARE_PROXY_USERNAME: Optional[str] = os.getenv("WEBSHARE_PROXY_USERNAME")
     WEBSHARE_PROXY_PASSWORD: Optional[str] = os.getenv("WEBSHARE_PROXY_PASSWORD")
 
+    # Redis settings
+    REDIS_URL: Optional[str] = os.getenv("REDIS_URL")
+
 # Create settings instance
 settings = Settings()
